@@ -6,7 +6,7 @@ URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateConte
 def clean(e, k):
     return str(e).replace(k, "***")
 
-def gemini_json(prompt, model="gemini-2.5-flash"):
+def gemini_json(prompt, model="gemini-flash-latest"):
     last = None
     for attempt in range(2):
         for k in GEMINI_KEYS:
