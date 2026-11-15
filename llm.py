@@ -13,15 +13,21 @@ def gemini_json(prompt, model="gemini-flash-latest"):
             try:
                 r = requests.post(
                     URL.format(m=model, k=k),
-                    json={"contents": [{"parts": [{"text": prompt}]}],
-                          "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9}},
-                    timeout=90)
+                    json={
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        "generationConfig": {
+                            "responseMimeType": "application/json",
+                            "temperature": 0.9,
+                            "thinkingConfig": {"thinkingBudget": 0}
+                        }
+                    },
+                    timeout=180)
                 r.raise_for_status()
                 txt = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 return json.loads(txt)
             except Exception as e:
                 last = clean(e, k)
-        time.sleep(15)
+        time.sleep(10)
     raise RuntimeError("gemini text failed: %s" % last)
 
 PROMPTS = {
