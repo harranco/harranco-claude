@@ -1,35 +1,53 @@
 import json, time, requests
 from .config import GEMINI_KEYS
 
-URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={k}"
-MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
+BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 def clean(e, k):
     return str(e).replace(k, "***")
 
-def gemini_json(prompt, model=None):
+def get_working_models(k):
+    try:
+        r = requests.get(f"{BASE}/models?key={k}", timeout=20)
+        r.raise_for_status()
+        names = [
+            m["name"].replace("models/", "")
+            for m in r.json().get("models", [])
+            if "generateContent" in m.get("supportedGenerationMethods", [])
+            and "gemini" in m["name"]
+            and "embedding" not in m["name"]
+            and "vision" not in m["name"]
+        ]
+        # ترتيب النماذج الأسرع أولاً
+        flash = [n for n in names if "flash" in n]
+        others = [n for n in names if "flash" not in n]
+        return (flash + others) or ["gemini-2.5-flash"]
+    except Exception:
+        return ["gemini-2.5-flash", "gemini-2.5-pro"]
+
+def gemini_json(prompt):
     last = None
-    models_to_try = [model] if model else MODELS
-    for m in models_to_try:
-        for k in GEMINI_KEYS:
+    for k in GEMINI_KEYS:
+        models = get_working_models(k)
+        for m in models[:4]:
             try:
                 r = requests.post(
-                    URL.format(m=m, k=k),
+                    f"{BASE}/models/{m}:generateContent?key={k}",
                     json={
                         "contents": [{"parts": [{"text": prompt}]}],
                         "generationConfig": {
                             "responseMimeType": "application/json",
-                            "temperature": 0.85,
-                            "maxOutputTokens": 1024
+                            "temperature": 0.85
                         }
                     },
-                    timeout=45)
+                    timeout=60)
+                if r.status_code == 404:
+                    continue
                 r.raise_for_status()
                 txt = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 return json.loads(txt)
             except Exception as e:
                 last = f"[{m}] {clean(e, k)}"
-        time.sleep(3)
     raise RuntimeError("gemini text failed: %s" % last)
 
 PROMPTS = {
