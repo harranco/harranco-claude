@@ -3,6 +3,7 @@ from .config import GEMINI_KEYS, GEMINI_VOICE, ELEVEN_KEY, ELEVEN_VOICE, EN_VOIC
 from .llm import clean
 
 RATE = 24000
+AR_EDGE_VOICE = "ar-SA-HamedNeural"
 
 def write_wav(pcm, path):
     with wave.open(path, "wb") as w:
@@ -44,18 +45,22 @@ def eleven_tts(text, path):
     r.raise_for_status()
     write_wav(r.content, path)
 
-def edge_tts(text, path):
+def edge_tts(text, path, voice=EN_VOICE):
     mp3 = path + ".mp3"
-    subprocess.run(["edge-tts", "--voice", EN_VOICE, "--text", text, "--write-media", mp3],
+    subprocess.run(["edge-tts", "--voice", voice, "--text", text, "--write-media", mp3],
                    check=True, capture_output=True)
     subprocess.run(["ffmpeg", "-y", "-i", mp3, "-ar", str(RATE), "-ac", "1", path],
                    check=True, capture_output=True)
 
 def synth(lang, text, path):
     if lang == "en":
-        edge_tts(text, path); return "edge-tts"
+        edge_tts(text, path, EN_VOICE); return "edge-tts"
     try:
         gemini_tts(text, path); return "gemini"
     except Exception as e:
         print("gemini failed, trying elevenlabs:", e)
-        eleven_tts(text, path); return "elevenlabs"
+        try:
+            eleven_tts(text, path); return "elevenlabs"
+        except Exception as e2:
+            print("elevenlabs failed, falling back to edge-tts:", e2)
+            edge_tts(text, path, AR_EDGE_VOICE); return "edge-tts"
