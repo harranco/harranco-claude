@@ -43,7 +43,7 @@ def schedule_all(lang, script, video_url):
     for svc, ch in CHANNELS.items():
         inp = {"channelId": ch, "text": text, "schedulingType": "automatic", "mode": "customScheduled",
                "dueAt": due.isoformat(timespec="seconds"),
-               "assets": {"videos": [{"url": video_url}]}, "metadata": {svc: metas[svc]}}
+               "assets": {"video": {"url": video_url}}, "metadata": {svc: metas[svc]}}
         try:
             res = gql(MUT, {"input": inp})["createPost"]
             if res.get("message"):
