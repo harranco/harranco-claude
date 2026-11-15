@@ -2,32 +2,34 @@ import json, time, requests
 from .config import GEMINI_KEYS
 
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={k}"
+MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
 
 def clean(e, k):
     return str(e).replace(k, "***")
 
-def gemini_json(prompt, model="gemini-flash-latest"):
+def gemini_json(prompt, model=None):
     last = None
-    for attempt in range(2):
+    models_to_try = [model] if model else MODELS
+    for m in models_to_try:
         for k in GEMINI_KEYS:
             try:
                 r = requests.post(
-                    URL.format(m=model, k=k),
+                    URL.format(m=m, k=k),
                     json={
                         "contents": [{"parts": [{"text": prompt}]}],
                         "generationConfig": {
                             "responseMimeType": "application/json",
-                            "temperature": 0.9,
-                            "thinkingConfig": {"thinkingBudget": 0}
+                            "temperature": 0.85,
+                            "maxOutputTokens": 1024
                         }
                     },
-                    timeout=180)
+                    timeout=45)
                 r.raise_for_status()
                 txt = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 return json.loads(txt)
             except Exception as e:
-                last = clean(e, k)
-        time.sleep(10)
+                last = f"[{m}] {clean(e, k)}"
+        time.sleep(3)
     raise RuntimeError("gemini text failed: %s" % last)
 
 PROMPTS = {
